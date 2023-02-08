@@ -48,6 +48,35 @@
   ansible.builtin.set_fact:
     pve_kvm_inferred_vmid: "{{ pve_kvm_clone_newid if(pve_kvm_clone_newid is defined and pve_kvm_clone_from_existing) else ( pve_kvm_vmid if(pve_kvm_vmid is defined) else pve_kvm_extracted_vmid.stdout ) }}"
 
+# Loop over pve_kvm_net_interfaces and ensure they have been created and are up to date
+- name: Ensure KVM NICs have been created or are up to date
+  community.general.proxmox_nic:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user | default(omit) }}"
+    api_password: "{{ pve_api_password | default(omit) }}"
+    api_token_id: "{{ pve_api_token_id | default(omit) }}"
+    api_token_secret: "{{ pve_api_token_secret | default(omit) }}"
+    validate_certs: "{{ pve_validate_certs | default(omit) }}"
+    vmid: "{{ pve_kvm_inferred_vmid }}"
+    name: "{{ pve_hostname | default(omit) }}"
+    interface: "{{ net.id }}"
+    model: "{{ net.model | default(omit) }}"
+    mac: "{{ net.hwaddr | default(omit) }}"
+    bridge: "{{ net.bridge | default(omit) }}"
+    firewall: "{{ net.firewall | default(omit) }}"
+    link_down: "{{ net.disconnect | default(omit) }}"
+    queues: "{{ net.multiqueue | default(omit) }}"
+    rate: "{{ net.rate_limit | default(omit) }}"
+    tag: "{{ net.vlan_tag | default(omit) }}"
+    mtu: "{{ net.mtu | default(omit) }}"
+    trunks: "{{ net.trunks | default(omit) }}"
+    state: "{{ net.state | default(omit) }}"
+  register: pve_kvm_virtual_created
+  loop: "{{ pve_kvm_net_interfaces }}"
+  loop_control:
+    loop_var: net
+  delegate_to: "{{ pve_api_host }}"
+
 # Tareas a ejecutar una sola vez para reconfigurar recursos de una VM recién clonada
 # One-time tasks to configure resources of a newly cloned VM
 - include_tasks: post_clone_kvm_configuration.yml
